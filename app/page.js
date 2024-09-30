@@ -62,9 +62,11 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
+    <div className="min-h-screen flex items-center justify-center bg-gray-500 px-4">
+      {" "}
+      {/* 在這裡添加了 px-4 */}
       <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-4">查詢颱風資料</h1>
+        <h1 className="text-2xl font-bold mb-4">颱風假查詢</h1>
         <Select onValueChange={handleSelectChange}>
           <SelectTrigger className="w-[280px]">
             <SelectValue placeholder="選擇縣市" />
