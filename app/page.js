@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as React from "react";
 import {
   Select,
@@ -11,7 +11,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// 縣市列表及其對應的數字
 const cityList = [
   { value: "基隆市", label: "基隆市", number: 1 },
   { value: "臺北市", label: "臺北市", number: 2 },
@@ -32,89 +31,185 @@ const cityList = [
   { value: "宜蘭縣", label: "宜蘭縣", number: 17 },
   { value: "花蓮縣", label: "花蓮縣", number: 18 },
   { value: "臺東縣", label: "臺東縣", number: 19 },
-  { value: "蘭嶼鄉", label: "蘭嶼鄉", number: 20 },
-  { value: "澎湖縣", label: "澎湖縣", number: 21 },
-  { value: "連江縣", label: "連江縣", number: 22 },
-  { value: "金門縣", label: "金門縣", number: 23 },
+  { value: "澎湖縣", label: "澎湖縣", number: 20 },
+  { value: "連江縣", label: "連江縣", number: 21 },
+  { value: "金門縣", label: "金門縣", number: 22 },
 ];
 
 export default function Home() {
-  const [cityNumber, setCityNumber] = useState(""); // 用於儲存數字
+  const [cityNumber, setCityNumber] = useState(1); // 預設為第一個縣市
   const [data, setData] = useState(null);
+  const [updateTime, setUpdateTime] = useState("");
+  const [showData, setShowData] = useState(false);
+  const [locationLoaded, setLocationLoaded] = useState(false);
+  const [locationFetched, setLocationFetched] = useState(false); // 新增狀態
+  const [selectedCity, setSelectedCity] = useState("");
 
-  // 當下拉選單變化時更新 cityNumber
+  const fetchData = async () => {
+    if (cityNumber) {
+      const response = await fetch(`/api/viewData?city=${cityNumber}`);
+      const result = await response.json();
+      const rawUpdateTime = result.updateTime || "2024/09/30 18:52:14";
+      setUpdateTime(formatUpdateTime(rawUpdateTime));
+      setData(result);
+      setShowData(true);
+      setLocationLoaded(true); // 在這裡解除載入狀態
+    }
+  };
+
+  useEffect(() => {
+    const checkLocationPermission = async () => {
+      try {
+        const permissionStatus = await navigator.permissions.query({
+          name: "geolocation",
+        });
+
+        if (permissionStatus.state === "granted" && !locationFetched) {
+          // 加入 locationFetched 判斷
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const latitude = position.coords.latitude;
+              const longitude = position.coords.longitude;
+
+              fetch(`/api/getCityByLocation?lat=${latitude}&lon=${longitude}`)
+                .then((response) => {
+                  if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                  }
+                  return response.json();
+                })
+                .then((result) => {
+                  const matchedCity = cityList.find(
+                    (city) => city.value === result.cityName
+                  );
+                  if (matchedCity) {
+                    setCityNumber(matchedCity.number);
+                    setSelectedCity(matchedCity.value);
+                    fetchData(); // 自動請求資料
+                  } else {
+                    setLocationLoaded(true); // 如果沒有匹配的城市，也解除載入狀態
+                  }
+                  setLocationFetched(true); // 設置為已獲取位置
+                })
+                .catch((error) => {
+                  console.error("Error fetching city data:", error);
+                  setLocationLoaded(true); // 發生錯誤時也解除載入狀態
+                  setLocationFetched(true); // 設置為已獲取位置
+                });
+            },
+            (error) => {
+              console.error("Error getting location:", error);
+              setLocationLoaded(true); // 獲取位置失敗時解除載入狀態
+              setLocationFetched(true); // 設置為已獲取位置
+            }
+          );
+        } else {
+          // 沒有開啟 GPS，直接載入網站
+          setLocationLoaded(true);
+        }
+      } catch (error) {
+        console.error("Error checking location permission:", error);
+        setLocationLoaded(true); // 如果檢查權限時出現錯誤，也直接載入網站
+        setLocationFetched(true); // 設置為已獲取位置
+      }
+    };
+
+    checkLocationPermission();
+  }, [cityNumber, locationFetched]); // 將 locationFetched 加入依賴列表
+
   const handleSelectChange = (value) => {
-    // 尋找選擇的城市並更新 cityNumber 為其對應的數字
     const selectedCity = cityList.find((city) => city.value === value);
     setCityNumber(selectedCity ? selectedCity.number : "");
+    setSelectedCity(value);
+    fetchData(); // 正確請求資料
   };
 
-  const handleSubmit = async () => {
-    if (!cityNumber) {
-      // 如果沒有選擇縣市，顯示錯誤訊息
-      window.console.error("請選擇一個縣市");
-      return;
-    }
+  const formatUpdateTime = (rawTime) => {
+    const date = new Date(rawTime);
+    const year = String(date.getFullYear()).slice(2);
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
 
-    const response = await fetch(`/api/viewData?city=${cityNumber}`);
-    const result = await response.json();
-    setData(result);
+    return `${year}.${month}.${day} ${hours}:${minutes}`;
   };
+
+  if (!locationLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-500 px-4">
+        載入中...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-500 px-4">
       <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-4">查詢颱風資料</h1>
-        <Select onValueChange={handleSelectChange}>
-          <SelectTrigger className="w-[280px]">
-            <SelectValue placeholder="選擇縣市" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>縣市</SelectLabel>
-              {cityList.map((city) => (
-                <SelectItem key={city.value} value={city.value}>
-                  {city.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold m-3">查詢颱風資料</h1>
+          {updateTime && (
+            <span className="text-sm text-gray-500">
+              更新時間：{updateTime}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center space-x-2 mt-4">
+          <Select onValueChange={handleSelectChange} value={selectedCity}>
+            <SelectTrigger className="w-[280px]">
+              <SelectValue placeholder="選擇縣市" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>縣市</SelectLabel>
+                {cityList.map((city) => (
+                  <SelectItem key={city.value} value={city.value}>
+                    {city.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
 
         <button
-          onClick={handleSubmit}
-          className="bg-blue-500 text-white rounded-lg px-4 py-2 mt-4"
+          onClick={() => fetchData()}
+          className="bg-blue-500 text-white rounded-lg px-4 py-2 mt-4 w-full"
         >
           查詢資料
         </button>
 
-        {data && (
-          <div className="mt-4">
-            <h2 className="text-xl font-semibold">查詢結果</h2>
-            <div className="bg-gray-100 p-4 rounded-lg">
-              {Array.isArray(data.data) ? (
+        <div className="mt-4">
+          <h2 className="text-xl font-semibold">查詢結果</h2>
+          <div className="bg-gray-100 p-4 rounded-lg min-h-[100px]">
+            {showData && data ? (
+              Array.isArray(data.data) ? (
                 data.data.map((message, index) => (
                   <div key={index} className="mb-2">
-                    {message.includes("照常") ? ( // 優先檢查「照常」
+                    {message.includes("照常") ? (
                       <div className="bg-red-500 p-2 rounded-lg text-white font-bold">
                         {message}
                       </div>
                     ) : message.includes("停止上班") ||
-                      message.includes("停止上課") ? ( // 再檢查「停止上班」或「停止上課」
+                      message.includes("停止上課") ? (
                       <div className="bg-yellow-400 p-2 rounded-lg text-black font-bold">
                         {message}
                       </div>
                     ) : (
-                      <div>{message}</div>
+                      <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
+                        {message}
+                      </div>
                     )}
                   </div>
                 ))
               ) : (
                 <div>{data.data}</div>
-              )}
-            </div>
+              )
+            ) : null}{" "}
+            {/* 不顯示任何內容 */}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
