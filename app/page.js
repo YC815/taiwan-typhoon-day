@@ -42,9 +42,9 @@ export default function Home() {
   const [updateTime, setUpdateTime] = useState("");
   const [showData, setShowData] = useState(false);
   const [locationLoaded, setLocationLoaded] = useState(false);
-  const [locationFetched, setLocationFetched] = useState(false); // 新增狀態
   const [selectedCity, setSelectedCity] = useState("");
 
+  // 將 fetchData 移到這裡
   const fetchData = async () => {
     if (cityNumber) {
       const response = await fetch(`/api/viewData?city=${cityNumber}`);
@@ -58,14 +58,27 @@ export default function Home() {
   };
 
   useEffect(() => {
+    const fetchData = async () => {
+      if (cityNumber) {
+        // 確保有選擇縣市後才請求資料
+        const response = await fetch(`/api/viewData?city=${cityNumber}`);
+        const result = await response.json();
+        const rawUpdateTime = result.updateTime || "2024/09/30 18:52:14";
+        setUpdateTime(formatUpdateTime(rawUpdateTime));
+        setData(result);
+        setShowData(true);
+        setLocationLoaded(true); // 在這裡解除載入狀態
+      }
+    };
+
     const checkLocationPermission = async () => {
       try {
         const permissionStatus = await navigator.permissions.query({
           name: "geolocation",
         });
 
-        if (permissionStatus.state === "granted" && !locationFetched) {
-          // 加入 locationFetched 判斷
+        if (permissionStatus.state === "granted") {
+          // 有開啟 GPS
           navigator.geolocation.getCurrentPosition(
             (position) => {
               const latitude = position.coords.latitude;
@@ -89,18 +102,15 @@ export default function Home() {
                   } else {
                     setLocationLoaded(true); // 如果沒有匹配的城市，也解除載入狀態
                   }
-                  setLocationFetched(true); // 設置為已獲取位置
                 })
                 .catch((error) => {
                   console.error("Error fetching city data:", error);
                   setLocationLoaded(true); // 發生錯誤時也解除載入狀態
-                  setLocationFetched(true); // 設置為已獲取位置
                 });
             },
             (error) => {
               console.error("Error getting location:", error);
               setLocationLoaded(true); // 獲取位置失敗時解除載入狀態
-              setLocationFetched(true); // 設置為已獲取位置
             }
           );
         } else {
@@ -110,12 +120,11 @@ export default function Home() {
       } catch (error) {
         console.error("Error checking location permission:", error);
         setLocationLoaded(true); // 如果檢查權限時出現錯誤，也直接載入網站
-        setLocationFetched(true); // 設置為已獲取位置
       }
     };
 
     checkLocationPermission();
-  }, [cityNumber, locationFetched]); // 將 locationFetched 加入依賴列表
+  }, [cityNumber]);
 
   const handleSelectChange = (value) => {
     const selectedCity = cityList.find((city) => city.value === value);
