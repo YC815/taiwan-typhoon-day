@@ -58,24 +58,13 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (cityNumber) {
-        // 確保有選擇縣市後才請求資料
-        const response = await fetch(`/api/viewData?city=${cityNumber}`);
-        const result = await response.json();
-        const rawUpdateTime = result.updateTime || "2024/09/30 18:52:14";
-        setUpdateTime(formatUpdateTime(rawUpdateTime));
-        setData(result);
-        setShowData(true);
-        setLocationLoaded(true); // 在這裡解除載入狀態
-      }
-    };
-
     const checkLocationPermission = async () => {
       try {
         const permissionStatus = await navigator.permissions.query({
           name: "geolocation",
         });
+
+        console.log("定位權限狀態:", permissionStatus.state); // 添加這一行來檢查權限狀態
 
         if (permissionStatus.state === "granted") {
           // 有開啟 GPS
@@ -100,8 +89,9 @@ export default function Home() {
                     setSelectedCity(matchedCity.value);
                     fetchData(); // 自動請求資料
                   } else {
-                    setLocationLoaded(true); // 如果沒有匹配的城市，也解除載入狀態
+                    console.log("找不到匹配的城市:", result.cityName);
                   }
+                  setLocationLoaded(true); // 無論如何都設置為載入完成
                 })
                 .catch((error) => {
                   console.error("Error fetching city data:", error);
@@ -115,6 +105,7 @@ export default function Home() {
           );
         } else {
           // 沒有開啟 GPS，直接載入網站
+          console.log("用戶未授予定位權限，將直接載入網站。");
           setLocationLoaded(true);
         }
       } catch (error) {
@@ -123,8 +114,8 @@ export default function Home() {
       }
     };
 
-    checkLocationPermission();
-  }, [cityNumber]);
+    checkLocationPermission(); // 在這裡調用請求權限的函數
+  }, []); // 確保依賴數組是空的，這樣只會在組件加載時執行一次
 
   const handleSelectChange = (value) => {
     const selectedCity = cityList.find((city) => city.value === value);
@@ -189,11 +180,11 @@ export default function Home() {
           查詢資料
         </button>
 
-        <div className="mt-4">
-          <h2 className="text-xl font-semibold">查詢結果</h2>
-          <div className="bg-gray-100 p-4 rounded-lg min-h-[100px]">
-            {showData && data ? (
-              Array.isArray(data.data) ? (
+        {data && ( // 檢查 data 是否存在
+          <div className="mt-4">
+            <h2 className="text-xl font-semibold">查詢結果</h2>
+            <div className="bg-gray-100 p-4 rounded-lg">
+              {Array.isArray(data.data) ? (
                 data.data.map((message, index) => (
                   <div key={index} className="mb-2">
                     {message.includes("照常") ? (
@@ -206,19 +197,16 @@ export default function Home() {
                         {message}
                       </div>
                     ) : (
-                      <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
-                        {message}
-                      </div>
+                      <div>{message}</div>
                     )}
                   </div>
                 ))
               ) : (
                 <div>{data.data}</div>
-              )
-            ) : null}{" "}
-            {/* 不顯示任何內容 */}
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
