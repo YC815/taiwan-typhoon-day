@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
+import { Analytics } from "@vercel/analytics/react";
 const cityList = [
   { value: "基隆市", label: "基隆市", number: 1 },
   { value: "臺北市", label: "臺北市", number: 2 },
@@ -131,6 +131,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-500 px-4">
+      <Analytics />
       <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between">
         {/* 標題移至最上方 */}
         <h1 className="text-2xl font-bold m-3 self-center">颱風假動態</h1>
