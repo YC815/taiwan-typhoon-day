@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import * as React from "react";
 import {
   Select,
@@ -45,7 +45,7 @@ export default function Home() {
   const [selectedCity, setSelectedCity] = useState("");
 
   // 將 fetchData 移到這裡
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (cityNumber) {
       const response = await fetch(`/api/viewData?city=${cityNumber}`);
       const result = await response.json();
@@ -55,62 +55,50 @@ export default function Home() {
       setShowData(true);
       setLocationLoaded(true); // 在這裡解除載入狀態
     }
-  };
+  }, [cityNumber]);
 
   useEffect(() => {
     const checkLocationPermission = async () => {
       try {
-        const permissionStatus = await navigator.permissions.query({
-          name: "geolocation",
-        });
+        // 嘗試直接請求定位
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
 
-        console.log("定位權限狀態:", permissionStatus.state); // 添加這一行來檢查權限狀態
-
-        if (permissionStatus.state === "granted") {
-          // 有開啟 GPS
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const latitude = position.coords.latitude;
-              const longitude = position.coords.longitude;
-
-              fetch(`/api/getCityByLocation?lat=${latitude}&lon=${longitude}`)
-                .then((response) => {
-                  if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                  }
-                  return response.json();
-                })
-                .then((result) => {
-                  const matchedCity = cityList.find(
-                    (city) => city.value === result.cityName
-                  );
-                  if (matchedCity) {
-                    setCityNumber(matchedCity.number);
-                    setSelectedCity(matchedCity.value);
-                    fetchData(); // 自動請求資料
-                  } else {
-                    console.log("找不到匹配的城市:", result.cityName);
-                  }
-                  setLocationLoaded(true); // 無論如何都設置為載入完成
-                })
-                .catch((error) => {
-                  console.error("Error fetching city data:", error);
-                  setLocationLoaded(true); // 發生錯誤時也解除載入狀態
-                });
-            },
-            (error) => {
-              console.error("Error getting location:", error);
-              setLocationLoaded(true); // 獲取位置失敗時解除載入狀態
-            }
-          );
-        } else {
-          // 沒有開啟 GPS，直接載入網站
-          console.log("用戶未授予定位權限，將直接載入網站。");
-          setLocationLoaded(true);
-        }
+            fetch(`/api/getCityByLocation?lat=${latitude}&lon=${longitude}`)
+              .then((response) => {
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+              })
+              .then((result) => {
+                const matchedCity = cityList.find(
+                  (city) => city.value === result.cityName
+                );
+                if (matchedCity) {
+                  setCityNumber(matchedCity.number);
+                  setSelectedCity(matchedCity.value);
+                  fetchData(); // 自動請求資料
+                } else {
+                  console.log("找不到匹配的城市:", result.cityName);
+                }
+                setLocationLoaded(true); // 在這裡解除載入狀態
+              })
+              .catch((error) => {
+                console.error("Error fetching city data:", error);
+                setLocationLoaded(true); // 發生錯誤時也解除載入狀態
+              });
+          },
+          (error) => {
+            console.error("Error getting location:", error);
+            setLocationLoaded(true); // 獲取位置失敗時解除載入狀態
+          }
+        );
       } catch (error) {
-        console.error("Error checking location permission:", error);
-        setLocationLoaded(true); // 如果檢查權限時出現錯誤，也直接載入網站
+        console.error("Error requesting location:", error);
+        setLocationLoaded(true); // 如果請求定位時出現錯誤，也直接載入網站
       }
     };
 
