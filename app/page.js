@@ -44,7 +44,6 @@ export default function Home() {
   const [locationLoaded, setLocationLoaded] = useState(false);
   const [selectedCity, setSelectedCity] = useState("");
 
-  // 將 fetchData 移到這裡
   const fetchData = useCallback(async () => {
     if (cityNumber) {
       const response = await fetch(`/api/viewData?city=${cityNumber}`);
@@ -60,7 +59,6 @@ export default function Home() {
   useEffect(() => {
     const checkLocationPermission = async () => {
       try {
-        // 嘗試直接請求定位
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const latitude = position.coords.latitude;
@@ -102,8 +100,8 @@ export default function Home() {
       }
     };
 
-    checkLocationPermission(); // 在這裡調用請求權限的函數
-  }, []); // 確保依賴數組是空的，這樣只會在組件加載時執行一次
+    checkLocationPermission();
+  }, []);
 
   const handleSelectChange = (value) => {
     const selectedCity = cityList.find((city) => city.value === value);
@@ -132,17 +130,12 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-500 px-4">
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold m-3">查詢颱風資料</h1>
-          {updateTime && (
-            <span className="text-sm text-gray-500">
-              更新時間：{updateTime}
-            </span>
-          )}
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-500 px-4">
+      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between">
+        {/* 標題移至最上方 */}
+        <h1 className="text-2xl font-bold m-3 self-center">查詢颱風資料</h1>
 
+        {/* 縣市選擇 */}
         <div className="flex items-center space-x-2 mt-4">
           <Select onValueChange={handleSelectChange} value={selectedCity}>
             <SelectTrigger className="w-[280px]">
@@ -168,20 +161,24 @@ export default function Home() {
           查詢資料
         </button>
 
-        {data && ( // 檢查 data 是否存在
+        {data && (
           <div className="mt-4">
             <h2 className="text-xl font-semibold">查詢結果</h2>
             <div className="bg-gray-100 p-4 rounded-lg">
               {Array.isArray(data.data) ? (
                 data.data.map((message, index) => (
                   <div key={index} className="mb-2">
-                    {message.includes("照常") ? (
-                      <div className="bg-red-500 p-2 rounded-lg text-white font-bold">
+                    {message.includes("尚未列入警戒區") ? (
+                      <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
+                        今天照常上班、照常上課。
+                      </div>
+                    ) : message.includes("照常") ? (
+                      <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
                         {message}
                       </div>
                     ) : message.includes("停止上班") ||
                       message.includes("停止上課") ? (
-                      <div className="bg-yellow-400 p-2 rounded-lg text-black font-bold">
+                      <div className="bg-red-500 p-2 rounded-lg text-black font-bold">
                         {message}
                       </div>
                     ) : (
@@ -194,6 +191,13 @@ export default function Home() {
               )}
             </div>
           </div>
+        )}
+
+        {/* 更新時間移至最下方 */}
+        {updateTime && (
+          <span className="text-sm text-gray-500 mt-4 self-center">
+            更新時間：{updateTime}
+          </span>
         )}
       </div>
     </div>
