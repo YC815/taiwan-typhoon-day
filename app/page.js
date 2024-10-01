@@ -133,7 +133,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-500 px-4">
       <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between">
         {/* 標題移至最上方 */}
-        <h1 className="text-2xl font-bold m-3 self-center">查詢颱風資料</h1>
+        <h1 className="text-2xl font-bold m-3 self-center">颱風假動態</h1>
 
         {/* 縣市選擇 */}
         <div className="flex items-center space-x-2 mt-4">
