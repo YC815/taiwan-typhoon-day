@@ -196,7 +196,7 @@ export default function Home() {
         {/* 更新時間移至最下方 */}
         {updateTime && (
           <span className="text-sm text-gray-500 mt-4 self-center">
-            更新時間：{updateTime}
+            資料更新時間：{updateTime}
           </span>
         )}
       </div>
