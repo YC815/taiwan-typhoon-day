@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 
 const cityList = [
+  // { value: "選擇縣市", label: "選擇縣市", number: 0 },
   { value: "基隆市", label: "基隆市", number: 1 },
   { value: "臺北市", label: "臺北市", number: 2 },
   { value: "新北市", label: "新北市", number: 3 },
@@ -37,7 +38,7 @@ const cityList = [
 ];
 
 export default function Home() {
-  const [cityNumber, setCityNumber] = useState(1); // 預設為第一個縣市
+  const [cityNumber, setCityNumber] = useState(0); // 預設為第一個縣市
   const [data, setData] = useState(null);
   const [updateTime, setUpdateTime] = useState("");
   const [locationData, setLocationData] = useState(null);
@@ -202,14 +203,14 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-500 px-4">
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between">
+      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between mt-3">
         {/* 上方固定顯示當前位置的台風假動態 */}
-        <h1 className="text-2xl font-bold m-3 self-center">颱風假動態</h1>
+        <h1 className="text-2xl font-bold m-3 mb-5 self-center">颱風假動態</h1>
 
         {hasLocation && locationData && (
           <div>
             <h2 className="text-xl font-semibold">
-              {locationData.cityName} 颱風假動態
+              您目前為於 {locationData.cityName}
             </h2>
             <div className="bg-gray-100 p-4 rounded-lg">
               {data && data.data && Array.isArray(data.data) ? (
@@ -242,7 +243,8 @@ export default function Home() {
         <hr className="mt-3 mb-3 border-t border-gray-300" />
 
         {/* 下方顯示用戶選擇的城市的台風假動態 */}
-        <Select onValueChange={handleSelectChange} value={selectedCity}>
+        <h2 className="text-xl font-semibold mb-2">查詢其他縣市</h2>
+        <Select onValueChange={handleSelectChange}>
           <SelectTrigger className="w-[280px] mb-4">
             <SelectValue placeholder="選擇縣市" />
           </SelectTrigger>
