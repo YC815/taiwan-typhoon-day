@@ -40,21 +40,22 @@ export default function Home() {
   const [cityNumber, setCityNumber] = useState(1); // 預設為第一個縣市
   const [data, setData] = useState(null);
   const [updateTime, setUpdateTime] = useState("");
+  const [locationData, setLocationData] = useState(null);
   const [showData, setShowData] = useState(false);
   const [locationLoaded, setLocationLoaded] = useState(false);
   const [selectedCity, setSelectedCity] = useState("");
+  const [hasLocation, setHasLocation] = useState(false); // 判斷是否有位置
 
-  const fetchData = useCallback(async () => {
-    if (cityNumber) {
-      const response = await fetch(`/api/viewData?city=${cityNumber}`);
+  const fetchData = useCallback(async (number) => {
+    if (number) {
+      const response = await fetch(`/api/viewData?city=${number}`);
       const result = await response.json();
       const rawUpdateTime = result.updateTime || "2024/09/30 18:52:14";
       setUpdateTime(formatUpdateTime(rawUpdateTime));
       setData(result);
       setShowData(true);
-      setLocationLoaded(true); // 在這裡解除載入狀態
     }
-  }, [cityNumber]);
+  }, []);
 
   useEffect(() => {
     const checkLocationPermission = async () => {
@@ -78,7 +79,9 @@ export default function Home() {
                 if (matchedCity) {
                   setCityNumber(matchedCity.number);
                   setSelectedCity(matchedCity.value);
-                  fetchData(); // 自動請求資料
+                  fetchData(matchedCity.number); // 自動請求資料
+                  setLocationData(result); // 保存當前位置資料
+                  setHasLocation(true); // 設置有位置
                 } else {
                   console.log("找不到匹配的城市:", result.cityName);
                 }
@@ -107,7 +110,7 @@ export default function Home() {
     const selectedCity = cityList.find((city) => city.value === value);
     setCityNumber(selectedCity ? selectedCity.number : "");
     setSelectedCity(value);
-    fetchData(); // 正確請求資料
+    fetchData(selectedCity.number); // 正確請求資料
   };
 
   const formatUpdateTime = (rawTime) => {
@@ -129,16 +132,16 @@ export default function Home() {
     );
   }
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-500 px-4">
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between">
-        {/* 標題移至最上方 */}
-        <h1 className="text-2xl font-bold m-3 self-center">颱風假動態</h1>
-
-        {/* 縣市選擇 */}
-        <div className="flex items-center space-x-2 mt-4">
+  // 無定位時顯示舊版內容
+  if (!hasLocation) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-500 px-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between">
+          <h1 className="text-2xl font-bold m-3 self-center">颱風假動態</h1>
+          <p className="text-center mb-2">請手動選擇縣市以查看颱風假動態。</p>
+          {/* 顯示舊版查詢功能 */}
           <Select onValueChange={handleSelectChange} value={selectedCity}>
-            <SelectTrigger className="w-[280px]">
+            <SelectTrigger className="w-[280px] mb-4">
               <SelectValue placeholder="選擇縣市" />
             </SelectTrigger>
             <SelectContent>
@@ -152,20 +155,55 @@ export default function Home() {
               </SelectGroup>
             </SelectContent>
           </Select>
+          <div className="bg-gray-100 p-4 rounded-lg">
+            {data && data.data && Array.isArray(data.data) ? (
+              data.data.map((message, index) => (
+                <div key={index} className="mb-2">
+                  {message.includes("尚未列入警戒區") ? (
+                    <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
+                      今天照常上班、照常上課。
+                    </div>
+                  ) : message.includes("照常") ? (
+                    <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
+                      {message}
+                    </div>
+                  ) : message.includes("停止上班") ||
+                    message.includes("停止上課") ? (
+                    <div className="bg-red-500 p-2 rounded-lg text-black font-bold">
+                      {message}
+                    </div>
+                  ) : (
+                    <div>{message}</div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div>{data ? data.data : "沒有可顯示的資料"}</div>
+            )}
+          </div>
         </div>
+        {updateTime && (
+          <span className="text-sm text-gray-800 mt-4 self-center">
+            資料更新時間：{updateTime}
+          </span>
+        )}
+      </div>
+    );
+  }
 
-        <button
-          onClick={() => fetchData()}
-          className="bg-blue-500 text-white rounded-lg px-4 py-2 mt-4 w-full"
-        >
-          查詢資料
-        </button>
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-500 px-4">
+      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between">
+        {/* 上方固定顯示當前位置的台風假動態 */}
+        <h1 className="text-2xl font-bold m-3 self-center">颱風假動態</h1>
 
-        {data && (
-          <div className="mt-4">
-            <h2 className="text-xl font-semibold">查詢結果</h2>
+        {hasLocation && locationData && (
+          <div>
+            <h2 className="text-xl font-semibold">
+              {locationData.cityName} 颱風假動態
+            </h2>
             <div className="bg-gray-100 p-4 rounded-lg">
-              {Array.isArray(data.data) ? (
+              {data && data.data && Array.isArray(data.data) ? (
                 data.data.map((message, index) => (
                   <div key={index} className="mb-2">
                     {message.includes("尚未列入警戒區") ? (
@@ -187,19 +225,62 @@ export default function Home() {
                   </div>
                 ))
               ) : (
-                <div>{data.data}</div>
+                <div>{data ? data.data : "沒有可顯示的資料"}</div>
               )}
             </div>
           </div>
         )}
+        <hr className="mt-3 mb-3 border-t border-gray-300" />
 
-        {/* 更新時間移至最下方 */}
-        {updateTime && (
-          <span className="text-sm text-gray-500 mt-4 self-center">
-            資料更新時間：{updateTime}
-          </span>
-        )}
+        {/* 下方顯示用戶選擇的城市的台風假動態 */}
+        <Select onValueChange={handleSelectChange} value={selectedCity}>
+          <SelectTrigger className="w-[280px] mb-4">
+            <SelectValue placeholder="選擇縣市" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>縣市</SelectLabel>
+              {cityList.map((city) => (
+                <SelectItem key={city.value} value={city.value}>
+                  {city.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+
+        <div className="bg-gray-100 p-4 rounded-lg">
+          {data && data.data && Array.isArray(data.data) ? (
+            data.data.map((message, index) => (
+              <div key={index} className="mb-2">
+                {message.includes("尚未列入警戒區") ? (
+                  <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
+                    今天照常上班、照常上課。
+                  </div>
+                ) : message.includes("照常") ? (
+                  <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
+                    {message}
+                  </div>
+                ) : message.includes("停止上班") ||
+                  message.includes("停止上課") ? (
+                  <div className="bg-red-500 p-2 rounded-lg text-black font-bold">
+                    {message}
+                  </div>
+                ) : (
+                  <div>{message}</div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div>{data ? data.data : "沒有可顯示的資料"}</div>
+          )}
+        </div>
       </div>
+      {updateTime && (
+        <span className="text-sm text-gray-800 mt-4 self-center">
+          資料更新時間：{updateTime}
+        </span>
+      )}
     </div>
   );
 }
