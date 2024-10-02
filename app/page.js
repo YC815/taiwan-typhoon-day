@@ -181,6 +181,15 @@ export default function Home() {
               <div>{data ? data.data : "沒有可顯示的資料"}</div>
             )}
           </div>
+          <hr className="mt-3 mb-3 border-t border-gray-300" />
+          <div className="relative w-full" style={{ paddingBottom: "69.23%" }}>
+            <iframe
+              className="absolute top-0 left-0 w-full h-full"
+              style={{ aspectRatio: "650 / 450" }}
+              src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=default&metricTemp=default&metricWind=default&zoom=6&overlay=wind&product=ecmwf&level=surface&lat=23.876&lon=121.055"
+              frameBorder="0"
+            ></iframe>
+          </div>
         </div>
         {updateTime && (
           <span className="text-sm text-gray-800 mt-4 self-center">
@@ -274,6 +283,15 @@ export default function Home() {
           ) : (
             <div>{data ? data.data : "沒有可顯示的資料"}</div>
           )}
+        </div>
+        <hr className="mt-3 mb-3 border-t border-gray-300" />
+        <div className="relative w-full" style={{ paddingBottom: "69.23%" }}>
+          <iframe
+            className="absolute top-0 left-0 w-full h-full"
+            style={{ aspectRatio: "650 / 450" }}
+            src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=default&metricTemp=default&metricWind=default&zoom=6&overlay=wind&product=ecmwf&level=surface&lat=23.876&lon=121.055"
+            frameBorder="0"
+          ></iframe>
         </div>
       </div>
       {updateTime && (
