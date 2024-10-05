@@ -37,21 +37,22 @@ const cityList = [
 ];
 
 export default function Home() {
-  const [cityNumber, setCityNumber] = useState(0); // 預設為第一個縣市
+  const [cityNumber, setCityNumber] = useState(0);
   const [data, setData] = useState(null);
   const [updateTime, setUpdateTime] = useState("");
   const [locationData, setLocationData] = useState(null);
   const [showData, setShowData] = useState(false);
   const [locationLoaded, setLocationLoaded] = useState(false);
-  const [selectedCity, setSelectedCity] = useState("");
-  const [hasLocation, setHasLocation] = useState(false); // 判斷是否有位置
+  const [selectedCity, setSelectedCity] = useState(""); // 預設選擇為空字串
+  const [hasLocation, setHasLocation] = useState(false);
+  const [loading, setLoading] = useState(true); // 新增 loading 狀態
 
-  // 上方固定顯示的資料，只在定位獲取後顯示
   const [fixedLocationData, setFixedLocationData] = useState(null);
   const [fixedData, setFixedData] = useState(null);
   const [fixedUpdateTime, setFixedUpdateTime] = useState("");
 
   const fetchData = useCallback(async (number, isFixed = false) => {
+    setLoading(true); // 開始載入時設置 loading 為 true
     if (number) {
       const response = await fetch(`/api/viewData?city=${number}`);
       const result = await response.json();
@@ -66,6 +67,7 @@ export default function Home() {
         setData(result);
       }
       setShowData(true);
+      setLoading(false); // 資料載入完成後設置 loading 為 false
     }
   }, []);
 
@@ -91,27 +93,29 @@ export default function Home() {
                 if (matchedCity) {
                   setCityNumber(matchedCity.number);
                   setSelectedCity(matchedCity.value);
-                  fetchData(matchedCity.number, true); // 請求資料並設置為固定資料
-                  setFixedLocationData(result); // 保存當前位置資料
-                  setHasLocation(true); // 設置有位置
+                  fetchData(matchedCity.number);
+                  setLocationData(result);
+                  setHasLocation(true);
                 } else {
                   console.log("找不到匹配的城市:", result.cityName);
                 }
-                setLocationLoaded(true); // 在這裡解除載入狀態
+                setLocationLoaded(true);
               })
               .catch((error) => {
                 console.error("Error fetching city data:", error);
-                setLocationLoaded(true); // 發生錯誤時也解除載入狀態
+                setLocationLoaded(true);
               });
           },
           (error) => {
             console.error("Error getting location:", error);
-            setLocationLoaded(true); // 獲取位置失敗時解除載入狀態
+            setLocationLoaded(true);
+            setHasLocation(false); // 設置未開啟定位
           }
         );
       } catch (error) {
         console.error("Error requesting location:", error);
-        setLocationLoaded(true); // 如果請求定位時出現錯誤，也直接載入網站
+        setLocationLoaded(true);
+        setHasLocation(false); // 如果請求定位時出現錯誤，也設置未開啟定位
       }
     };
 
@@ -122,7 +126,7 @@ export default function Home() {
     const selectedCity = cityList.find((city) => city.value === value);
     setCityNumber(selectedCity ? selectedCity.number : "");
     setSelectedCity(value);
-    fetchData(selectedCity.number); // 正確請求資料
+    fetchData(selectedCity.number);
   };
 
   const formatUpdateTime = (rawTime) => {
@@ -136,20 +140,54 @@ export default function Home() {
     return `${year}.${month}.${day} ${hours}:${minutes}`;
   };
 
-  if (!locationLoaded) {
+  // 載入中狀態
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-500 px-4">
-        載入中...
+        <div className="text-white text-xl">資料載入中...</div>
+      </div>
+    );
+  }
+  if (!hasLocation) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-500 px-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between">
+          <h1 className="text-2xl font-bold m-3 self-center">颱風假動態</h1>
+          <p className="text-center mb-2">
+            定位未開啟，請手動選擇縣市以查看颱風假動態。
+          </p>
+          <Select onValueChange={handleSelectChange} value={selectedCity}>
+            <SelectTrigger className="w-[280px] mb-4">
+              <SelectValue placeholder="選擇縣市" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>縣市</SelectLabel>
+                {cityList.map((city) => (
+                  <SelectItem key={city.value} value={city.value}>
+                    {city.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          {/* 其餘的顯示邏輯保持不變 */}
+        </div>
+        {updateTime && (
+          <span className="text-sm text-gray-800 mt-4 self-center">
+            資料更新時間：{updateTime}
+          </span>
+        )}
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-500 px-4">
+      {/* 主要內容 */}
       <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between mt-3">
-        {/* 上方固定顯示當前位置的台風假動態 */}
+        {/* 固定顯示當前位置的颱風假資料 */}
         <h1 className="text-2xl font-bold m-3 mb-5 self-center">颱風假動態</h1>
-
         {hasLocation && fixedLocationData && (
           <div>
             <h2 className="text-xl font-semibold">
@@ -193,29 +231,33 @@ export default function Home() {
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between mt-5">
-        <h1 className="text-2xl font-bold m-3 mb-5 self-center">
-          查詢其他縣市台風假動態
-        </h1>
-
-        <Select onValueChange={handleSelectChange}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="選擇一個縣市" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>縣市列表</SelectLabel>
-              {cityList.map((city) => (
-                <SelectItem key={city.value} value={city.value}>
-                  {city.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-
+      {/* 查詢其他縣市的颱風假資料 */}
+      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between mt-3">
+        <h2 className="text-2xl font-bold m-3 mb-5 self-center">
+          查詢其他縣市的颱風假
+        </h2>
+        <div className="mb-4">
+          <Select
+            onValueChange={handleSelectChange}
+            defaultValue={selectedCity}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="選擇一個縣市" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>縣市列表</SelectLabel>
+                {cityList.map((city) => (
+                  <SelectItem key={city.value} value={city.value}>
+                    {city.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
         {showData && data && (
-          <div className="bg-gray-100 p-4 rounded-lg mt-5">
+          <div className="bg-gray-100 p-4 rounded-lg">
             {data.data && Array.isArray(data.data) && data.data.length > 0 ? (
               data.data.map((message, index) => (
                 <div key={index} className="mb-2">
