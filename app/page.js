@@ -50,12 +50,18 @@ export default function Home() {
   const [fixedLocationData, setFixedLocationData] = useState(null);
   const [fixedData, setFixedData] = useState(null);
   const [fixedUpdateTime, setFixedUpdateTime] = useState("");
-
+  const [userCityData, setUserCityData] = useState({
+    data: [],
+    cityName: "",
+  });
   const fetchData = useCallback(async (number, isFixed = false) => {
-    setLoading(true); // 開始載入時設置 loading 為 true
+    setLoading(true);
     if (number) {
       const response = await fetch(`/api/viewData?city=${number}`);
+      console.log("資料獲取解析前", response);
       const result = await response.json();
+      console.log("資料獲取解析後", result);
+      console.log("fetchData", result); // 這行用來檢查你獲取的數據
       const rawUpdateTime = result.updateTime || "2024/09/30 18:52:14";
       const formattedUpdateTime = formatUpdateTime(rawUpdateTime);
 
@@ -66,8 +72,8 @@ export default function Home() {
         setUpdateTime(formattedUpdateTime);
         setData(result);
       }
-      setShowData(true);
-      setLoading(false); // 資料載入完成後設置 loading 為 false
+      setShowData(true); // 確保在資料載入後顯示
+      setLoading(false);
     }
   }, []);
 
@@ -78,14 +84,8 @@ export default function Home() {
           (position) => {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
-
             fetch(`/api/getCityByLocation?lat=${latitude}&lon=${longitude}`)
-              .then((response) => {
-                if (!response.ok) {
-                  throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-              })
+              .then((response) => response.json())
               .then((result) => {
                 const matchedCity = cityList.find(
                   (city) => city.value === result.cityName
@@ -94,33 +94,35 @@ export default function Home() {
                   setCityNumber(matchedCity.number);
                   setSelectedCity(matchedCity.value);
                   fetchData(matchedCity.number);
+                  console.log("fetchData", fetchData);
+                  console.log("result.data", result.data);
+                  setUserCityData({
+                    data: result.data || [],
+                    cityName: matchedCity.value,
+                  });
+                  console.log("userCityData", userCityData);
                   setLocationData(result);
                   setHasLocation(true);
-                } else {
-                  console.log("找不到匹配的城市:", result.cityName);
                 }
-                setLocationLoaded(true);
-              })
-              .catch((error) => {
-                console.error("Error fetching city data:", error);
                 setLocationLoaded(true);
               });
           },
           (error) => {
             console.error("Error getting location:", error);
             setLocationLoaded(true);
-            setHasLocation(false); // 設置未開啟定位
+            setHasLocation(false);
+            setLoading(false);
           }
         );
       } catch (error) {
         console.error("Error requesting location:", error);
         setLocationLoaded(true);
-        setHasLocation(false); // 如果請求定位時出現錯誤，也設置未開啟定位
+        setHasLocation(false);
+        setLoading(false);
       }
     };
-
     checkLocationPermission();
-  }, []);
+  }, [fetchData]);
 
   const handleSelectChange = (value) => {
     const selectedCity = cityList.find((city) => city.value === value);
@@ -148,21 +150,21 @@ export default function Home() {
       </div>
     );
   }
-  if (!hasLocation) {
+  if (!hasLocation && locationLoaded) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-500 px-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between">
-          <h1 className="text-2xl font-bold m-3 self-center">颱風假動態</h1>
-          <p className="text-center mb-2">
-            定位未開啟，請手動選擇縣市以查看颱風假動態。
-          </p>
-          <Select onValueChange={handleSelectChange} value={selectedCity}>
-            <SelectTrigger className="w-[280px] mb-4">
-              <SelectValue placeholder="選擇縣市" />
+      <div className="bg-yellow-100 text-yellow-800 p-4 rounded-lg text-center">
+        無法獲取您的位置，請手動選擇要查詢的縣市。
+        <div className="mt-4">
+          <Select
+            onValueChange={handleSelectChange}
+            defaultValue={selectedCity}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="選擇一個縣市" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectLabel>縣市</SelectLabel>
+                <SelectLabel>縣市列表</SelectLabel>
                 {cityList.map((city) => (
                   <SelectItem key={city.value} value={city.value}>
                     {city.label}
@@ -171,13 +173,7 @@ export default function Home() {
               </SelectGroup>
             </SelectContent>
           </Select>
-          {/* 其餘的顯示邏輯保持不變 */}
         </div>
-        {updateTime && (
-          <span className="text-sm text-gray-800 mt-4 self-center">
-            資料更新時間：{updateTime}
-          </span>
-        )}
       </div>
     );
   }
@@ -188,43 +184,51 @@ export default function Home() {
       <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md flex flex-col justify-between mt-3">
         {/* 固定顯示當前位置的颱風假資料 */}
         <h1 className="text-2xl font-bold m-3 mb-5 self-center">颱風假動態</h1>
-        {hasLocation && fixedLocationData && (
+        {showData && userCityData.data && (
           <div>
             <h2 className="text-xl font-semibold">
-              您目前為於 {fixedLocationData.cityName}
+              您目前位於 {userCityData.cityName}
             </h2>
             <div className="bg-gray-100 p-4 rounded-lg">
-              {fixedData &&
-              fixedData.data &&
-              Array.isArray(fixedData.data) &&
-              fixedData.data.length > 0 ? (
-                fixedData.data.map((message, index) => (
-                  <div key={index} className="mb-2">
-                    {message.includes("尚未列入警戒區") ? (
-                      <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
-                        今天照常上班、照常上課。
-                      </div>
-                    ) : message.includes("照常") ? (
-                      <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
-                        {message}
-                      </div>
-                    ) : message.includes("停止上班") ||
-                      message.includes("停止上課") ? (
-                      <div className="bg-red-500 p-2 rounded-lg text-black font-bold">
-                        {message}
-                      </div>
-                    ) : (
-                      <div>{message}</div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
-                  明天照常上班、照常上課。
+              {userCityData.data.map((message, index) => (
+                <div key={index} className="mb-2">
+                  {message.includes("尚未列入警戒區") ? (
+                    <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
+                      今天照常上班、照常上課。
+                    </div>
+                  ) : message.includes("照常") ? (
+                    <div className="bg-green-500 p-2 rounded-lg text-white font-bold">
+                      {message}
+                    </div>
+                  ) : message.includes("停止上班") ||
+                    message.includes("停止上課") ? (
+                    <div className="bg-red-500 p-2 rounded-lg text-black font-bold">
+                      {message}
+                    </div>
+                  ) : (
+                    <div>{message}</div>
+                  )}
                 </div>
-              )}
+              ))}
+              {/* {userCityData.data &&
+                userCityData.data.map((message, index) => (
+                  <div key={index} className="mb-2">
+                    <div
+                      className={`p-2 rounded-lg font-bold ${
+                        message.includes("停止")
+                          ? "bg-red-500 text-black"
+                          : "bg-green-500 text-white"
+                      }`}
+                    >
+                      {message.includes("尚未列入警戒區")
+                        ? "今天照常上班、照常上課。"
+                        : message}
+                    </div>
+                  </div>
+                ))} */}
+
               <div className="mt-2 text-sm text-gray-500">
-                更新時間：{fixedUpdateTime}
+                更新時間：{updateTime}
               </div>
             </div>
           </div>
@@ -291,7 +295,7 @@ export default function Home() {
         )}
         <iframe
           className="w-full h-64 mt-5 rounded-lg"
-          src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=default&metricTemp=default&metricWind=default&zoom=6&overlay=wind&product=ecmwf&level=surface&lat=23.876&lon=121.055"
+          src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=default&metricTemp=default&metricWind=default&zoom=4&overlay=wind&product=ecmwf&level=surface&lat=23.876&lon=121.055"
           frameBorder="0"
         ></iframe>
       </div>

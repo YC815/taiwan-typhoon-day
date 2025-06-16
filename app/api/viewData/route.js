@@ -51,6 +51,16 @@ async function getData() {
     }
   }
 
+  // 檢查是否存在「無停班停課訊息。」
+  const noClosureInfo = document.body.textContent.includes("無停班停課訊息。");
+  if (noClosureInfo) {
+    const allNormalInfo = "照常上班，照常上課。";
+
+    // 这里返回的结构要和下面的返回结构一致
+    return { data: allNormalInfo, updateTime: rawUpdateTime };
+  }
+
+  // 如果沒有關鍵字，解析表格資料
   const table = document.getElementById("Table");
   const rows = table.getElementsByTagName("tr");
   const typhoonInfo = {};
@@ -65,19 +75,28 @@ async function getData() {
     }
   }
 
-  return { typhoonInfo, rawUpdateTime };
+  return { data: typhoonInfo, updateTime: rawUpdateTime };
 }
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const cityNumber = searchParams.get("city");
   const city = cityNumbering[cityNumber];
-  const { typhoonInfo, rawUpdateTime } = await getData();
+  const { data, updateTime } = await getData(); // 注意这里的数据结构变化
 
-  if (city && typhoonInfo[city]) {
+  // 如果没有城市信息，返回普通信息
+  if (data === "照常上班，照常上課。") {
     return NextResponse.json({
-      data: typhoonInfo[city],
-      updateTime: rawUpdateTime,
+      data,
+      updateTime,
+    });
+  }
+
+  // 处理城市信息
+  if (city && data[city]) {
+    return NextResponse.json({
+      data: data[city],
+      updateTime,
     });
   } else {
     return NextResponse.json(
